@@ -174,10 +174,220 @@ class FixNoRetry(BaseRefactor):
         )
 
 
-# Registry of all refactor modules
+# ── New 10 rules ──────────────────────────────────────────────────────────────
+
+class FixNoParallelism(BaseRefactor):
+    rule_id = "no-parallelism"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Enable parallel stage execution for independent stages",
+            before_snippet=(
+                "stages:\n  - lint\n  - test\n  - build"
+            ),
+            after_snippet=(
+                "stages:\n"
+                "  - stage: checks\n"
+                "    parallel:\n"
+                "      lint:\n"
+                "        stage: lint\n"
+                "      test:\n"
+                "        stage: test\n"
+                "  - build"
+            ),
+            effort_estimate="20 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixMissingTestStage(BaseRefactor):
+    rule_id = "missing-test-stage"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Add a dedicated test stage before any deployment",
+            before_snippet=(
+                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make build\n  deploy:\n    needs: build\n    steps:\n      - run: make deploy"
+            ),
+            after_snippet=(
+                "jobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: make build\n  test:\n    needs: build\n    runs-on: ubuntu-latest\n    steps:\n      - run: make test\n  deploy:\n    needs: test\n    steps:\n      - run: make deploy"
+            ),
+            effort_estimate="30 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixMissingLintStage(BaseRefactor):
+    rule_id = "missing-lint-stage"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Add a lint/code-quality stage to catch issues early",
+            before_snippet=(
+                "jobs:\n  build:\n    steps:\n      - run: npm run build"
+            ),
+            after_snippet=(
+                "jobs:\n  lint:\n    runs-on: ubuntu-latest\n    steps:\n      - run: npm run lint\n  build:\n    needs: lint\n    steps:\n      - run: npm run build"
+            ),
+            effort_estimate="15 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixNoApprovalGate(BaseRefactor):
+    rule_id = "no-approval-gate"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Add a manual approval gate before production deployment",
+            before_snippet=(
+                "deploy-prod:\n  stage: deploy\n  script:\n    - ./deploy.sh production"
+            ),
+            after_snippet=(
+                "approve-prod:\n  stage: approval\n  when: manual\n  allow_failure: false\n  script:\n    - echo 'Approved'\ndeploy-prod:\n  stage: deploy\n  needs: [approve-prod]\n  script:\n    - ./deploy.sh production"
+            ),
+            effort_estimate="15 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixPrivilegedRunner(BaseRefactor):
+    rule_id = "privileged-runner"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Replace privileged runner with rootless container execution",
+            before_snippet=(
+                "variables:\n  DOCKER_DRIVER: overlay2\nservices:\n  - docker:dind\n\nbuild:\n  image: docker:latest\n  tags:\n    - privileged"
+            ),
+            after_snippet=(
+                "variables:\n  DOCKER_DRIVER: overlay2\n  DOCKER_HOST: tcp://docker:2376\n  DOCKER_TLS_CERTDIR: /certs\nservices:\n  - docker:dind\n\nbuild:\n  image: docker:latest\n  # Use non-privileged socket mounting instead of privileged mode"
+            ),
+            effort_estimate="1 hour",
+            risk_level="medium",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixInsecureProtocol(BaseRefactor):
+    rule_id = "insecure-protocol"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Replace http:// with https:// to encrypt data in transit",
+            before_snippet=(
+                "steps:\n  - run: curl http://registry.example.com/package.tar.gz"
+            ),
+            after_snippet=(
+                "steps:\n  - run: curl https://registry.example.com/package.tar.gz"
+            ),
+            effort_estimate="5 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixMissingNotification(BaseRefactor):
+    rule_id = "missing-notification"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Add a failure notification step to alert on-call engineers",
+            before_snippet=(
+                "deploy:\n  stage: deploy\n  script:\n    - ./deploy.sh"
+            ),
+            after_snippet=(
+                "deploy:\n  stage: deploy\n  script:\n    - ./deploy.sh\n  after_script:\n    - |\n      if [ $CI_JOB_STATUS == 'failed' ]; then\n        curl -X POST $SLACK_WEBHOOK_URL \\\n          -d '{\"text\":\"Pipeline failed: '$CI_PIPELINE_URL'\"}'\n      fi"
+            ),
+            effort_estimate="20 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixUntaggedArtifact(BaseRefactor):
+    rule_id = "untagged-artifact"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Tag artifacts with a version derived from git ref or build number",
+            before_snippet=(
+                "steps:\n  - run: docker build -t myapp ."
+            ),
+            after_snippet=(
+                "steps:\n  - run: |\n      VERSION=${GITHUB_SHA::8}\n      docker build -t myapp:${VERSION} .\n      docker tag myapp:${VERSION} myapp:latest"
+            ),
+            effort_estimate="10 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixLargePipeline(BaseRefactor):
+    rule_id = "large-pipeline"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Decompose the monolithic pipeline into focused reusable workflows",
+            before_snippet=(
+                "# Single pipeline with 20+ steps performing build, test, lint,\n# security scan, docs, deploy-staging, deploy-prod, notify..."
+            ),
+            after_snippet=(
+                "# ci.yml — orchestrator\njobs:\n  call-build:\n    uses: ./.github/workflows/build.yml\n  call-test:\n    uses: ./.github/workflows/test.yml\n    needs: call-build\n  call-deploy:\n    uses: ./.github/workflows/deploy.yml\n    needs: call-test"
+            ),
+            effort_estimate="2 hours",
+            risk_level="medium",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+class FixMissingBuildStage(BaseRefactor):
+    rule_id = "missing-build-stage"
+
+    def suggest(self, finding: Finding, graph: CICDGraph) -> RefactorSuggestion:
+        return RefactorSuggestion(
+            rule_id=self.rule_id,
+            finding_id=finding.id,
+            description="Add an explicit build/compile stage to make the pipeline self-documenting",
+            before_snippet=(
+                "stages:\n  - prepare\n  - check\n  - ship"
+            ),
+            after_snippet=(
+                "stages:\n  - prepare\n  - build\n  - check\n  - ship\n\nbuild:\n  stage: build\n  script:\n    - make build"
+            ),
+            effort_estimate="10 minutes",
+            risk_level="low",
+            affected_node_ids=finding.affected_node_ids,
+        )
+
+
+# Registry of all refactor modules (original 10 + new 10)
 REFACTOR_REGISTRY: dict[str, type[BaseRefactor]] = {
     cls.rule_id: cls
     for cls in [
+        # Original 10
         FixNoTimeout,
         FixNoCache,
         FixSequentialStages,
@@ -188,5 +398,16 @@ REFACTOR_REGISTRY: dict[str, type[BaseRefactor]] = {
         FixCrossRepoTriggers,
         FixArtifactCoupling,
         FixNoRetry,
+        # New 10
+        FixNoParallelism,
+        FixMissingTestStage,
+        FixMissingLintStage,
+        FixNoApprovalGate,
+        FixPrivilegedRunner,
+        FixInsecureProtocol,
+        FixMissingNotification,
+        FixUntaggedArtifact,
+        FixLargePipeline,
+        FixMissingBuildStage,
     ]
 }

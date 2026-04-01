@@ -15,28 +15,55 @@ from atlas_rule_engine.base_rule import BaseRule
 from atlas_rule_engine.catalog.artifact_coupling import ArtifactCouplingRule
 from atlas_rule_engine.catalog.cross_repo_triggers import CrossRepoTriggersRule
 from atlas_rule_engine.catalog.heavy_shell import HeavyShellRule
+from atlas_rule_engine.catalog.insecure_protocol import InsecureProtocolRule
+from atlas_rule_engine.catalog.large_pipeline import LargePipelineRule
+from atlas_rule_engine.catalog.missing_build_stage import MissingBuildStageRule
 from atlas_rule_engine.catalog.missing_docs import MissingDocsRule
+from atlas_rule_engine.catalog.missing_lint_stage import MissingLintStageRule
+from atlas_rule_engine.catalog.missing_notification import MissingNotificationRule
+from atlas_rule_engine.catalog.missing_test_stage import MissingTestStageRule
+from atlas_rule_engine.catalog.no_approval_gate import NoApprovalGateRule
 from atlas_rule_engine.catalog.no_cache import NoCacheRule
+from atlas_rule_engine.catalog.no_parallelism import NoParallelismRule
 from atlas_rule_engine.catalog.no_retry import NoRetryRule
 from atlas_rule_engine.catalog.no_timeout import NoTimeoutRule
+from atlas_rule_engine.catalog.privileged_runner import PrivilegedRunnerRule
 from atlas_rule_engine.catalog.secret_exposure import SecretExposureRule
 from atlas_rule_engine.catalog.sequential_stages import SequentialStagesRule
+from atlas_rule_engine.catalog.untagged_artifact import UntaggedArtifactRule
 from atlas_rule_engine.catalog.unpinned_images import UnpinnedImagesRule
 
 logger = logging.getLogger(__name__)
 
 # Default catalog — all built-in rules
 DEFAULT_RULES: list[type[BaseRule]] = [
+    # Reliability
     NoTimeoutRule,
+    NoRetryRule,
+    MissingTestStageRule,
+    MissingBuildStageRule,
+    MissingNotificationRule,
+    NoApprovalGateRule,
+    # Performance
     NoCacheRule,
     SequentialStagesRule,
-    HeavyShellRule,
+    NoParallelismRule,
+    # Security
     UnpinnedImagesRule,
-    MissingDocsRule,
     SecretExposureRule,
+    PrivilegedRunnerRule,
+    InsecureProtocolRule,
+    # Complexity
+    HeavyShellRule,
+    LargePipelineRule,
+    # Quality
+    MissingLintStageRule,
+    # Documentation
+    MissingDocsRule,
+    # Dependencies
     CrossRepoTriggersRule,
     ArtifactCouplingRule,
-    NoRetryRule,
+    UntaggedArtifactRule,
 ]
 
 

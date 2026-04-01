@@ -23,11 +23,17 @@ def _make_graph():
 
 class TestRefactorModules:
 
-    def test_all_10_rules_have_refactors(self):
+    def test_all_20_rules_have_refactors(self):
         expected = {
+            # Original 10
             "no-timeout", "no-cache", "sequential-stages", "heavy-shell",
             "unpinned-images", "missing-docs", "secret-exposure",
             "cross-repo-triggers", "artifact-coupling", "no-retry",
+            # New 10
+            "no-parallelism", "missing-test-stage", "missing-lint-stage",
+            "no-approval-gate", "privileged-runner", "insecure-protocol",
+            "missing-notification", "untagged-artifact", "large-pipeline",
+            "missing-build-stage",
         }
         assert set(REFACTOR_REGISTRY.keys()) == expected
 
